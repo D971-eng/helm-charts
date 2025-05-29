@@ -202,10 +202,28 @@ hostAliases:
       - "status.localhost"
 ## @param extraVolumes Optionally specify extra list of additional volumes for Kimai pods
 ##
-extraVolumes: []
+extraVolumes: 
+    - name: apache-config
+      configMap:
+        name: kimai-apache-config
+    - name: ports-config
+      configMap:
+        name: ports-config
+    - name: ssl-cert
+      secret:
+       secretName: kimai2-tls-secret
 ## @param extraVolumeMounts Optionally specify extra list of additional volumeMounts for Kimai container(s)
 ##
-extraVolumeMounts: []
+extraVolumeMounts: 
+    - mountPath: /etc/apache2/sites-available/000-default.conf
+      name: apache-config
+      subPath: 000-default.conf
+    - mountPath: /etc/apache2/ports.conf
+      name: ports-config
+      subPath: ports.conf
+    - name: ssl-cert
+      mountPath: /etc/apache2/ssl
+      readOnly: true
 ## @param sidecars Add additional sidecar containers to the Kimai pod
 ## e.g:
 ## sidecars:
@@ -268,7 +286,8 @@ affinity: {}
 ## @param nodeSelector Node labels for pod assignment
 ## ref: https://kubernetes.io/docs/user-guide/node-selection/
 ##
-nodeSelector: {}
+nodeSelector: 
+  kubernetes.io/hostname: aks-uatsysnp01-32476938-vmss00000b
 ## @param tolerations Tolerations for pod assignment
 ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
 ##
@@ -290,7 +309,7 @@ resources:
 ## @param containerPorts.http Kimai HTTP container port
 ##
 containerPorts:
-  http: 8001
+  http: 443
 ## @param extraContainerPorts Optionally specify extra list of additional ports for Kimai container(s)
 ## e.g:
 ## extraContainerPorts:
@@ -337,6 +356,7 @@ containerSecurityContext:
 livenessProbe:
   enabled: true
   httpGet:
+    scheme: HTTPS
     path: /en/login
     port: http
     ## If using an HTTPS-terminating load-balancer, the probes may need to behave
@@ -351,6 +371,8 @@ livenessProbe:
     httpHeaders:
       - name: Host
         value: localhost
+      - name: X-Forwarded-Proto
+        value: https
   initialDelaySeconds: 120
   periodSeconds: 10
   timeoutSeconds: 5
@@ -369,6 +391,7 @@ readinessProbe:
   httpGet:
     path: /en/login
     port: http
+    scheme: HTTPS
     ## If using an HTTPS-terminating load-balancer, the probes may need to behave
     ## like the balancer to prevent HTTP 302 responses. According to the Kubernetes
     ## docs, 302 should be considered "successful", but this issue on GitHub
@@ -381,6 +404,8 @@ readinessProbe:
     httpHeaders:
       - name: Host
         value: localhost
+      - name: X-Forwarded-Proto
+        value: https
   initialDelaySeconds: 30
   periodSeconds: 10
   timeoutSeconds: 5
@@ -399,6 +424,7 @@ startupProbe:
   httpGet:
     path: /en/login
     port: http
+    scheme: HTTPS
     ## If using an HTTPS-terminating load-balancer, the probes may need to behave
     ## like the balancer to prevent HTTP 302 responses. According to the Kubernetes
     ## docs, 302 should be considered "successful", but this issue on GitHub
@@ -411,6 +437,8 @@ startupProbe:
     httpHeaders:
       - name: Host
         value: localhost
+      - name: X-Forwarded-Proto
+        value: https
   initialDelaySeconds: 30
   periodSeconds: 10
   timeoutSeconds: 5
@@ -427,8 +455,11 @@ customReadinessProbe: {}
 customStartupProbe: {}
 ## @param lifecycleHooks for the Kimai container(s) to automate configuration before or after startup
 ##
-lifecycleHooks: {}
-
+lifecycleHooks: 
+  postStart:
+    exec:
+      command: ["/bin/sh", "-c", "a2query -m ssl || (a2enmod ssl)"]
+# command: ["/bin/sh", "-c", "a2query -m ssl || (a2enmod ssl && apache2ctl graceful)"]
 ## @section Traffic Exposure Parameters
 ##
 
@@ -441,7 +472,7 @@ service:
   ## @param service.ports.http Kimai service HTTP port
   ##
   ports:
-    http: 80
+    http: 443
   ## Node ports to expose
   ## @param service.nodePorts.http Node port for HTTP
   ## NOTE: choose port between <30000-32767>
@@ -467,7 +498,7 @@ service:
   ## @param service.loadBalancerIP Kimai service Load Balancer IP
   ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-loadbalancer
   ##
-  loadBalancerIP: ""
+  loadBalancerIP: "134.33.238.29"
   ## @param service.loadBalancerSourceRanges Kimai service Load Balancer sources
   ## ref: https://kubernetes.io/docs/tasks/access-application-cluster/configure-cloud-provider-firewall/#restrict-access-for-loadbalancer-service
   ## e.g:
@@ -481,7 +512,8 @@ service:
   externalTrafficPolicy: Cluster
   ## @param service.annotations Additional custom annotations for Kimai service
   ##
-  annotations: {}
+  annotations: 
+      service.beta.kubernetes.io/azure-load-balancer-resource-group: SmartconX-Dev-RG
   ## @param service.extraPorts Extra port to expose on Kimai service
   ##
   extraPorts: []
@@ -505,7 +537,7 @@ ingress:
   ingressClassName: ""
   ## @param ingress.hostname Default host for the ingress record. The hostname is templated and thus can contain other variable references.
   ##
-  hostname: kimai.local
+  hostname: smartconxuat.com
   ## @param ingress.path Default path for the ingress record
   ## NOTE: You may need to set this to '/*' in order to use this with ALB ingress controllers
   ##
@@ -529,10 +561,10 @@ ingress:
   ##   - Rely on cert-manager to create it by setting the corresponding annotations
   ##   - Rely on Helm to create self-signed certificates by setting `ingress.selfSigned=true`
   ##
-  tls: false
+  tls: true
   ## @param ingress.selfSigned Create a TLS secret for this ingress record using self-signed certificates generated by Helm
   ##
-  selfSigned: false
+  selfSigned: true
   ## @param ingress.extraHosts An array with additional hostname(s) to be covered with the ingress record. The host names are templated and thus can contain other variable references.
   ## e.g:
   ## extraHosts:
