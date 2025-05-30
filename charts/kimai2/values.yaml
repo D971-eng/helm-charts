@@ -149,12 +149,28 @@ args: []
 ##     value: "256M"
 ##
 extraEnvVars: []
+    #  - name: SAML_IDP_X509CERT
+    #    valueFrom:
+    #     secretKeyRef:
+    #       name: AAD-saml-secrets
+    #       key: SAML_IDP_X509CERT
+    #  - name: DOMAIN
+    #    valueFrom:
+    #     secretKeyRef:
+    #       name: AAD-saml-secrets
+    #       key: DOMAIN
+    #  - name: TENANT_ID
+    #    valueFrom:
+    #     secretKeyRef:
+    #       name: AAD-saml-secrets
+    #       key: TENANT_ID              
+      
 ## @param extraEnvVarsCM Name of existing ConfigMap containing extra env vars
 ##
 extraEnvVarsCM: ""
 ## @param extraEnvVarsSecret Name of existing Secret containing extra env vars
 ##
-extraEnvVarsSecret: ""
+extraEnvVarsSecret: "aad-saml-secrets"
 
 ## @section Kimai deployment parameters
 ##
@@ -626,6 +642,40 @@ ingress:
   extraRules: []
 
 configuration: |-
+  
+  kimai:
+    saml:
+      provider: microsoft
+      activate: true
+      title: Login with Azure AD
+      mapping:
+        - { saml: $http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name, kimai: username }
+        - { saml: $http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress, kimai: email }
+        - { saml: $http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname $http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname, kimai: alias }
+      roles:
+        resetOnLogin: true
+        attribute: http://schemas.microsoft.com/ws/2008/06/identity/claims/groups
+        mapping:
+            - { saml: xxxxxxxx-yyyy-xxxx-yyyy-xxxxxxxxxxxx, kimai: ROLE_ADMIN }
+            - { saml: Azure-Group-Object-Id, kimai: ROLE_TEAMLEAD }
+      connection:
+        idp:
+            entityId: 'https://sts.windows.net/%env(TENANT_ID)%/'
+            singleSignOnService:
+                url: 'https://login.microsoftonline.com/%env(TENANT_ID)%/saml2'
+            x509cert: '%env(SAML_IDP_X509CERT)%'
+        sp:
+            entityId: 'https://%env(DOMAIN)%/auth/saml/metadata'
+            assertionConsumerService:
+                url: 'https://%env(DOMAIN)%/auth/saml/acs'
+            singleLogoutService:
+                url: 'https://%env(DOMAIN)%/auth/saml/logout'
+        security:
+            requestedAuthnContext: false
+        baseurl: 'https://%env(DOMAIN)%/auth/saml'
+  framework:
+      assets:
+          base_path: "/kimai2"
   monolog:
       handlers:
           main:
