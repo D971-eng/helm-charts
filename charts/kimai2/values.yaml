@@ -653,7 +653,7 @@ persistence:
   dataSource: {}
   ## @param persistence.existingClaim The name of an existing PVC to use for persistence
   ##
-  existingClaim: ""
+  existingClaim: kimai2-server-pvc
   ## @param persistence.selector Selector to match an existing Persistent Volume for Kimai data PVC
   ## If set, the PVC can't have a PV dynamically provisioned for it
   ## E.g.
@@ -902,6 +902,8 @@ mariadb:
       accessModes:
         - ReadWriteOnce
       size: 4Gi
+      existingClaim: kimai2-mariadb-pvc
+      
 ## External Database Configuration
 ## All of these values are only used if `mariadb.enabled=false`
 ##
