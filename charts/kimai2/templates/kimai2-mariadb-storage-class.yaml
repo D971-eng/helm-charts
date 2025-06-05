@@ -1,0 +1,8 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: kimai2-mariadb-azure-storage-class
+provisioner: kubernetes.io/azure-disk
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate

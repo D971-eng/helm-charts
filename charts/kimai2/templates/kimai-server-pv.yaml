@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: kimai2-server-pv
+  annotations:
+    pv.kubernetes.io/bound-by-controller: 'yes'
+  finalizers:
+    - kubernetes.io/pv-protection
+    - external-attacher/disk-csi-azure-com
+spec:
+  capacity:
+    storage: 4Gi
+  csi:
+    driver: disk.csi.azure.com
+    volumeHandle: >-
+      /subscriptions/5cd41c92-754a-486e-95ff-f1fc311c0fa2/resourcegroups/SmartconX-UAT-RG/providers/Microsoft.Compute/disks/kimai-server-pv
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: kimai2-server-azure-storage-class
+  volumeMode: Filesystem
